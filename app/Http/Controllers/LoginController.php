@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
@@ -11,20 +12,33 @@ class LoginController extends Controller
         return view("login");
     }
 
+    public function logout(Request $request){
+        Auth::logout(); // Cierra la sesión
+
+        $request->session()->invalidate(); // Invalida la sesión actual
+        $request->session()->regenerateToken(); // Regenera el token CSRF por seguridad
+
+        return redirect('/'); // Te manda al login
+    }
+
     public function authenticate(Request $request){
-        // Definir credenciales válidas
-        $valid_email = "admin@hotmail.com";
-        $valid_password = "1234";
+        // 1. Validamos que lleguen los datos
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+        ]);
 
-        $email = $request->input('email');
-        $password = $request->input('password');
-
-        if ($email === $valid_email && $password === $valid_password) {
-            // Redirige si las credenciales son correctas
+        // 2. Auth::attempt hace la magia: Verifica en la BD y crea la sesión
+        if (Auth::attempt($credentials)) {
+            
+            $request->session()->regenerate(); // Seguridad
+    
             return redirect()->route('inicio');
-        } else {
-            // Mensaje de error y redirige de vuelta al login
-            return redirect()->route('login')->with('error', 'Credenciales incorrectas');
         }
+ 
+        // 3. Si falla
+        return back()->withErrors([
+            'email' => 'Las credenciales no coinciden.',
+        ]);
     }
 }
